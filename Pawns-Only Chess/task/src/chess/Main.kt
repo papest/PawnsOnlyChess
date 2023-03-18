@@ -27,6 +27,27 @@ object ChessBoard {
         }
     }
 
+    private fun checkStalemate(army: Army, lastTurn: String): Boolean {
+
+        for (i in 0 until SIZE) {
+            for (j in 0 until SIZE)
+                if (chessBoard[i][j] == army.symbol) {
+                    if (i == army.endRank) continue
+                    if (chessBoard[i + army.forward][j] == ' ') return false
+                    val opponentSymbol = Army.values()[(army.ordinal + 1) % 2].symbol
+                    if (j - 1 > 0 && chessBoard[i][j - 1] == opponentSymbol || j + 1 < SIZE &&
+                        chessBoard[i + army.forward][j + 1] == opponentSymbol
+                    ) return false
+                    if (rankToInt(lastTurn[3]) == i && (fileToInt(lastTurn[2]) == j - 1 ||
+                                fileToInt(lastTurn[2]) == j + 1)
+                        && chessBoard[rankToInt(lastTurn[3] + army.forward)][fileToInt(lastTurn[2])] == ' '
+                    )
+                        return false
+                }
+        }
+        return true
+    }
+
     private fun printChessBoard() {
         for (i in 0 until SIZE) {
             println("  $horizontalBorder")
@@ -93,13 +114,37 @@ object ChessBoard {
 
         while (true) {
             next %= 2
-            val turn = turn(Army.values()[next++], lastTurn)
+            val army = Army.values()[next++]
+            val turn = turn(army, lastTurn)
             if (turn == "exit") break
             lastTurn = turn
             printChessBoard()
+
+            if (!checkAnyPawns(Army.values()[next % 2].symbol) || checkWinningPawn(army)) {
+                println("${army.name[0].uppercase() + army.name.substring(1, army.name.length)} Wins!")
+                break
+            }
+            if (checkStalemate(Army.values()[next % 2], lastTurn)) {
+                println("Stalemate!")
+                break
+            }
+
         }
 
         println("Bye!")
+    }
+
+    private fun checkWinningPawn(army: Army): Boolean {
+        return chessBoard[army.endRank].contains(army.symbol)
+    }
+
+    private fun checkAnyPawns(symbol: Char): Boolean {
+        for (i in 0 until SIZE) {
+            for (j in 0 until SIZE) {
+                if (chessBoard[i][j] == symbol) return true
+            }
+        }
+        return false
     }
 }
 
@@ -113,12 +158,13 @@ fun readUserNames() {
 enum class Army(
     val symbol: Char,
     var userName: String,
-    private val forward: Int,
+    val forward: Int,
     private val extraPosition: Int,
-    private val extraForward: Int
+    private val extraForward: Int,
+    val endRank: Int
 ) {
-    WHITE('W', "", -1, 6, -2),
-    BLACK('B', "", 1, 1, 2);
+    WHITE('W', "", -1, 6, -2, 0),
+    BLACK('B', "", 1, 1, 2, 7);
 
     fun forward(fromFile: Int, fromRank: Int, toFile: Int, toRank: Int) {
         if (ChessBoard.chessBoard[toRank][toFile] != ' ') throw Exception("Invalid input")
@@ -140,6 +186,7 @@ enum class Army(
         if (toRank - fromRank == forward && abs(toFile - fromFile) == 1) return
         throw Exception("Invalid input")
     }
+
 }
 
 fun main() {
